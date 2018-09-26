@@ -1,71 +1,65 @@
 #include "Context.h"
 #include "Render.h"
+#include "Timer.h"
+
 #include "glm/ext.hpp"
 
 int main()
 {
 	context game;
 	game.init(800, 600, "Banana");
+	game.enableVSync(true);
 
-	vertex triVerts[]= 
-	{
-		{{-.5f, -.5f, 0, 1}},
-		{{.5f, -.5f, 0, 1}},
-		{{0, .5f, 0, 1}}
-	};
-	vertex triVerts2[] =
-	{
-		{ { -.5f, .1f, 0, 1 } },
-	{ { .5f, .1f, 0, 1 } },
-	{ { 0, -.9f, 0, 1 } }
-	};
-	unsigned int triIndices[] = { 2, 1, 0 };
+	Timer time;
 	
-	//triangles
-	geometry triangle = makeGeometry(triVerts, 3, triIndices, 3);
-	geometry triangle2 = makeGeometry(triVerts2, 3, triIndices, 3);
+	geometry triangle = loadGeometry("res\\mdl\\tri.obj");
+	geometry soulspear = loadGeometry("res\\mdl\\soulspear.obj");
+	geometry cube = loadGeometry("res\\mdl\\cube.obj");
 
-	const char * basicVert =
-		"#version 410\n"
-		"layout (location = 0) in vec4 position;\n"
-		"void main() { gl_Position = position; }";
+	shader stdShad = loadShader("res\\shad\\mvp.vert", "res\\shad\\mvp.frag");
 
-	const char * mvpVert =
-		"#version 430\n"
-		"layout (location = 0) in vec4 position;\n"
-		"layout (location = 0) uniform mat4 proj;\n"
-		"layout (location = 1) uniform mat4 view;\n"
-		"layout (location = 2) uniform mat4 model;\n"
-		"void main() { gl_Position = proj * view * model * position; }";
-
-	const char * basicFrag =
-		"#version 330\n"
-		"out vec4 vertColor;\n"
-		"void main() { vertColor = vec4(1.0, 1.0, 0.0, 1.0); }";
-									//Red, Green, Blue, Alpha.
-
-	Shader basicShad = makeShader(basicVert, basicFrag);
-	Shader mvpShad = makeShader(mvpVert, basicFrag);
+	texture soulDiffuse = loadTexture("res\\img\\Cole Squint.png");
+	texture soulNormal = loadTexture("res\\img\\soulspear_normal.tga");
+	//texture soulSpecular = loadTexture("res\\img\\soulspear_specular.tga");
 
 	glm::mat4 cam_proj = glm::perspective(glm::radians(45.f), 800.0f / 600.0f, 0.1f, 1000.0f);
-	glm::mat4 cam_view = glm::lookAt(glm::vec3(0, 0, -1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+	glm::mat4 cam_view = glm::lookAt(glm::vec3(0, 1, 2), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 	glm::mat4 triangle_model = glm::identity<glm::mat4>();
+
+	light sun;
+	sun.direction = glm::vec3(-1, 0, 0);
 
 
 	while (!game.shouldClose())
 	{
-		game.tick();
+		// services
+		time.Tick();
+		game.Tick();
 		game.clear();
 
-		triangle_model = glm::rotate(triangle_model, glm::radians(5.f), glm::vec3(0, 1, 0));
+		// game logic
+		triangle_model = glm::rotate(triangle_model, glm::radians(90.f) * time.deltaTime(), glm::vec3(0, 1, 0));
 
-		setUniform(mvpShad, 0, cam_proj);
-		setUniform(mvpShad, 1, cam_view);
-		setUniform(mvpShad, 2, triangle_model);
+		// draw logic
+		setUniform(stdShad, 0, cam_proj);
+		setUniform(stdShad, 1, cam_view);
+		setUniform(stdShad, 2, triangle_model);
 
-		draw(mvpShad, triangle);
-		draw(mvpShad, triangle2);
+		setUniform(stdShad, 3, soulDiffuse, 0);
+		setUniform(stdShad, 4, sun.direction);
+
+		draw(stdShad, cube);
 	}
+
+	freeGeometry(triangle);
+	freeGeometry(cube);
+	freeGeometry(soulspear);
+
+	freeShader(stdShad);
+
+	freeTexture(soulDiffuse);
+	freeTexture(soulNormal);
+	//freeTexture(soulSpecular);
 
 	game.term();
 
